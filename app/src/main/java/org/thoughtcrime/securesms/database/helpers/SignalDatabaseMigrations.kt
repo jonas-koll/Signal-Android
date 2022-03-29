@@ -14,7 +14,11 @@ import androidx.core.content.contentValuesOf
 import com.annimon.stream.Stream
 import com.google.protobuf.InvalidProtocolBufferException
 import net.zetetic.database.sqlcipher.SQLiteDatabase
+import org.signal.core.util.CursorUtil
+import org.signal.core.util.Hex
+import org.signal.core.util.SqlUtil
 import org.signal.core.util.logging.Log
+import org.signal.core.util.requireString
 import org.thoughtcrime.securesms.color.MaterialColor
 import org.thoughtcrime.securesms.contacts.avatars.ContactColorsLegacy
 import org.thoughtcrime.securesms.conversation.colors.AvatarColor
@@ -24,7 +28,6 @@ import org.thoughtcrime.securesms.database.KeyValueDatabase
 import org.thoughtcrime.securesms.database.RecipientDatabase
 import org.thoughtcrime.securesms.database.model.DistributionListId
 import org.thoughtcrime.securesms.database.model.databaseprotos.ReactionList
-import org.thoughtcrime.securesms.database.requireString
 import org.thoughtcrime.securesms.dependencies.ApplicationDependencies
 import org.thoughtcrime.securesms.groups.GroupId
 import org.thoughtcrime.securesms.jobs.RefreshPreKeysJob
@@ -36,11 +39,8 @@ import org.thoughtcrime.securesms.profiles.ProfileName
 import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.storage.StorageSyncHelper
 import org.thoughtcrime.securesms.util.Base64
-import org.thoughtcrime.securesms.util.CursorUtil
 import org.thoughtcrime.securesms.util.FileUtils
-import org.thoughtcrime.securesms.util.Hex
 import org.thoughtcrime.securesms.util.ServiceUtil
-import org.thoughtcrime.securesms.util.SqlUtil
 import org.thoughtcrime.securesms.util.Stopwatch
 import org.thoughtcrime.securesms.util.Triple
 import org.thoughtcrime.securesms.util.Util
@@ -195,8 +195,9 @@ object SignalDatabaseMigrations {
   private const val ALLOW_STORY_REPLIES = 133
   private const val GROUP_STORIES = 134
   private const val MMS_COUNT_INDEX = 135
+  private const val STORY_SENDS = 136
 
-  const val DATABASE_VERSION = 135
+  const val DATABASE_VERSION = 136
 
   @JvmStatic
   fun migrate(context: Application, db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -2485,6 +2486,22 @@ object SignalDatabaseMigrations {
 
     if (oldVersion < MMS_COUNT_INDEX) {
       db.execSQL("CREATE INDEX IF NOT EXISTS mms_thread_story_parent_story_index ON mms (thread_id, date_received, is_story, parent_story_id)")
+    }
+
+    if (oldVersion < STORY_SENDS) {
+      db.execSQL(
+        """
+          CREATE TABLE story_sends (
+            _id INTEGER PRIMARY KEY,
+            message_id INTEGER NOT NULL REFERENCES mms (_id) ON DELETE CASCADE,
+            recipient_id INTEGER NOT NULL REFERENCES recipient (_id) ON DELETE CASCADE,
+            sent_timestamp INTEGER NOT NULL,
+            allows_replies INTEGER NOT NULL
+          )
+        """.trimIndent()
+      )
+
+      db.execSQL("CREATE INDEX story_sends_recipient_id_sent_timestamp_allows_replies_index ON story_sends (recipient_id, sent_timestamp, allows_replies)")
     }
   }
 

@@ -3,8 +3,8 @@ package org.thoughtcrime.securesms.database
 import android.app.Application
 import android.content.Context
 import net.zetetic.database.sqlcipher.SQLiteOpenHelper
+import org.signal.core.util.SqlUtil
 import org.signal.core.util.logging.Log
-import org.thoughtcrime.securesms.contacts.ContactsDatabase
 import org.thoughtcrime.securesms.crypto.AttachmentSecret
 import org.thoughtcrime.securesms.crypto.DatabaseSecret
 import org.thoughtcrime.securesms.crypto.MasterSecret
@@ -21,7 +21,6 @@ import org.thoughtcrime.securesms.jobs.RefreshPreKeysJob
 import org.thoughtcrime.securesms.migrations.LegacyMigrationJob
 import org.thoughtcrime.securesms.migrations.LegacyMigrationJob.DatabaseUpgradeListener
 import org.thoughtcrime.securesms.service.KeyCachingService
-import org.thoughtcrime.securesms.util.SqlUtil
 import org.thoughtcrime.securesms.util.TextSecurePreferences
 import java.io.File
 
@@ -49,7 +48,6 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
   val pushDatabase: PushDatabase = PushDatabase(context, this)
   val groupDatabase: GroupDatabase = GroupDatabase(context, this)
   val recipientDatabase: RecipientDatabase = RecipientDatabase(context, this)
-  val contactsDatabase: ContactsDatabase = ContactsDatabase(context)
   val groupReceiptDatabase: GroupReceiptDatabase = GroupReceiptDatabase(context, this)
   val preKeyDatabase: OneTimePreKeyDatabase = OneTimePreKeyDatabase(context, this)
   val signedPreKeyDatabase: SignedPreKeyDatabase = SignedPreKeyDatabase(context, this)
@@ -72,6 +70,7 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
   val notificationProfileDatabase: NotificationProfileDatabase = NotificationProfileDatabase(context, this)
   val donationReceiptDatabase: DonationReceiptDatabase = DonationReceiptDatabase(context, this)
   val distributionListDatabase: DistributionListDatabase = DistributionListDatabase(context, this)
+  val storySendsDatabase: StorySendsDatabase = StorySendsDatabase(context, this)
 
   override fun onOpen(db: net.zetetic.database.sqlcipher.SQLiteDatabase) {
     db.enableWriteAheadLogging()
@@ -105,6 +104,7 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     db.execSQL(GroupCallRingDatabase.CREATE_TABLE)
     db.execSQL(ReactionDatabase.CREATE_TABLE)
     db.execSQL(DonationReceiptDatabase.CREATE_TABLE)
+    db.execSQL(StorySendsDatabase.CREATE_TABLE)
     executeStatements(db, SearchDatabase.CREATE_TABLE)
     executeStatements(db, RemappedRecordsDatabase.CREATE_TABLE)
     executeStatements(db, MessageSendLogDatabase.CREATE_TABLE)
@@ -127,6 +127,7 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     executeStatements(db, GroupCallRingDatabase.CREATE_INDEXES)
     executeStatements(db, NotificationProfileDatabase.CREATE_INDEXES)
     executeStatements(db, DonationReceiptDatabase.CREATE_INDEXS)
+    db.execSQL(StorySendsDatabase.CREATE_INDEX)
 
     executeStatements(db, MessageSendLogDatabase.CREATE_TRIGGERS)
     executeStatements(db, ReactionDatabase.CREATE_TRIGGERS)
@@ -333,11 +334,6 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
       get() = instance!!.chatColorsDatabase
 
     @get:JvmStatic
-    @get:JvmName("contacts")
-    val contacts: ContactsDatabase
-      get() = instance!!.contactsDatabase
-
-    @get:JvmStatic
     @get:JvmName("distributionLists")
     val distributionLists: DistributionListDatabase
       get() = instance!!.distributionListDatabase
@@ -487,5 +483,10 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     @get:JvmName("donationReceipts")
     val donationReceipts: DonationReceiptDatabase
       get() = instance!!.donationReceiptDatabase
+
+    @get:JvmStatic
+    @get:JvmName("storySends")
+    val storySends: StorySendsDatabase
+      get() = instance!!.storySendsDatabase
   }
 }
